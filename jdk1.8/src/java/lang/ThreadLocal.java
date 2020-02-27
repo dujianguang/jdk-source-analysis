@@ -477,6 +477,18 @@ public class ThreadLocal<T> {
          * @param value the value to be set
          *  采用开放定址法
          *  replaceStaleEntry、cleanSomeSlots清除掉key==null的实例
+         *
+         *
+         * 理一下逻辑，设置的时候做了几步：
+         * 1、先对ThreadLocal里面的threadLocalHashCode取模获取到一个table中的位置
+         * 2、这个位置上如果有数据，获取这个位置上的ThreadLocal
+         *  （1）判断一下位置上的ThreadLocal和我本身这个ThreadLocal是不是一个ThreadLocal，是的话数据就覆盖，返回
+         *  （2）不是同一个ThreadLocal，再判断一下位置上的ThreadLocal是是不是空的，这个解释一下。Entry是ThreadLocal弱引用，
+         *      "static class Entry extends WeakReference<ThreadLocal>"，有可能这个ThreadLocal被垃圾回收了，
+         *       这时候把新设置的value替换到当前位置上，返回
+         *  （3）上面都没有返回，给模加1，看看模加1后的table位置上是不是空的，是空的再加1，判断位置上是不是空的...一直到找到一
+         *       个table上的位置不是空的为止，往这里面塞一个value。换句话说，当table的位置上有数据的时候，ThreadLocal采取的是
+         *       办法是找最近的一个空的位置设置数据。
          */
         private void set(ThreadLocal<?> key, Object value) {
 

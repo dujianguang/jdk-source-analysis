@@ -28,6 +28,14 @@ Thread、ThreadLocal、ThreadLocalMap关系图
 
 ![thread_local_map](https://github.com/muyutingfeng/jdk-source-analysis/raw/master/note/doc/java.lang/ThreadLocal/thread_local_map%E5%85%B3%E7%B3%BB%E5%9B%BE.png?raw=true)
 
+ThreadLocal的三个理论基础：
+
+1、每个线程都有一个自己的ThreadLocal.ThreadLocalMap对象
+
+2、每一个ThreadLocal对象都有一个循环计数器
+
+3、ThreadLocal.get()取值，就是根据当前的线程，获取线程中自己的ThreadLocal.ThreadLocalMap，然后在这个Map中根据第二点中循环计数器取得一个特定value值
+
 
 
 ## 2、ThreadLocal使用示例
@@ -405,3 +413,14 @@ ThreadLocalMap其内部利用Entry来实现key-value的存储，如下：
 > 每个Thread内部都有一个ThreadLocal.ThreadLocalMap类型的成员变量，该成员变量用来存储实际的ThreadLocal变量副本。
 >
 > ThreadLocal并不是为线程保存对象的副本，它仅仅只起到一个索引的作用。它的主要木得视为每一个线程隔离一个类的实例，这个实例的作用范围仅限于线程内部。
+
+
+
+## 5、ThreadLocal原理
+
+对这些内容做一个总结，ThreadLocal的原理简单说应该是这样的：
+
+1. ThreadLocal不需要key，因为**线程里面自己的ThreadLocal.ThreadLocalMap不是通过链表法实现的，而是通过开放地址法实现的**
+2. 每次set的时候往线程里面的ThreadLocal.ThreadLocalMap中的table数组某一个位置塞一个值，这个位置由ThreadLocal中的threadLocaltHashCode取模得到，如果位置上有数据了，就往后找一个没有数据的位置
+3. 每次get的时候也一样，根据ThreadLocal中的threadLocalHashCode取模，取得线程中的ThreadLocal.ThreadLocalMap中的table的一个位置，看一下有没有数据，没有就往下一个位置找
+4. 既然ThreadLocal没有key，那么一个ThreadLocal只能塞一种特定数据。如果想要往线程里面的ThreadLocal.ThreadLocalMap里的table不同位置塞数据 ，比方说想塞三种String、一个Integer、两个Double、一个Date，请定义多个ThreadLocal，ThreadLocal支持泛型"public class ThreadLocal<T>"。 
