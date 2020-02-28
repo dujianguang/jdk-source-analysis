@@ -1520,7 +1520,7 @@ public abstract class AbstractQueuedSynchronizer
         Node h, s;
         return (h = head) != null &&
             (s = h.next)  != null &&
-            !s.isShared()         &&
+            !s.isShared()         &&//非共享即独占
             s.thread != null;
     }
 

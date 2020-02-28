@@ -115,6 +115,8 @@ package java.util.concurrent.locks;
  *
  * @since 1.5
  * @author Doug Lea
+ *
+ * 分别获得读锁写锁对象
  */
 public interface ReadWriteLock {
     /**
