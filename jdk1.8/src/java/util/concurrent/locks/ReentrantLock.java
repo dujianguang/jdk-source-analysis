@@ -247,6 +247,15 @@ public class ReentrantLock implements Lock, java.io.Serializable {
     static final class FairSync extends Sync {
         private static final long serialVersionUID = -3000897897090466540L;
 
+        /**
+         * “当前线程”实际上是通过acquire(1)获取锁的。
+         * 这里说明一下“1”的含义，它是设置“锁的状态”的参数。对于“独占锁”而言，锁处于可获取状态时，它的状态值是0；
+         * 锁被线程初次获取到了，它的状态值就变成了1。
+         *
+         * 由于ReentrantLock(公平锁/非公平锁)是可重入锁，所以“独占锁”可以被单个线程多此获取，每获取1次就将锁的状态+1。
+         * 也就是说，初次获取锁时，通过acquire(1)将锁的状态值设为1；再次获取锁时，将锁的状态值设为2；依次类推...这就是为什么获取锁时，
+         * 传入的参数是1的原因了。可重入就是指锁可以被单个线程多次获取。
+         */
         final void lock() {
             acquire(1);
         }
@@ -254,11 +263,21 @@ public class ReentrantLock implements Lock, java.io.Serializable {
         /**
          * Fair version of tryAcquire.  Don't grant access unless
          * recursive call or no waiters or is first.
+         *
+         * tryAcquire()的作用就是尝试去获取锁。注意，这里只是尝试！
+         * 尝试成功的话，返回true；尝试失败的话，返回false，后续再通过其它办法来获取该锁。
+         * 后面我们会说明，在尝试失败的情况下，是如何一步步获取锁的。
          */
         protected final boolean tryAcquire(int acquires) {
+            // 获取“当前线程”
             final Thread current = Thread.currentThread();
+            // 获取“独占锁”的状态
             int c = getState();
+            // c=0意味着“锁没有被任何线程锁拥有”，
             if (c == 0) {
+                // 若“锁没有被任何线程锁拥有”，
+                // 则判断“当前线程”是不是CLH队列中的第一个线程线程，
+                // 若是的话，则获取该锁，设置锁的状态，并切设置锁的拥有者为“当前线程”。
                 if (!hasQueuedPredecessors() &&
                     compareAndSetState(0, acquires)) {
                     setExclusiveOwnerThread(current);
@@ -266,6 +285,8 @@ public class ReentrantLock implements Lock, java.io.Serializable {
                 }
             }
             else if (current == getExclusiveOwnerThread()) {
+                // 如果“独占锁”的拥有者已经为“当前线程”，
+                // 则将更新锁的状态。
                 int nextc = c + acquires;
                 if (nextc < 0)
                     throw new Error("Maximum lock count exceeded");
@@ -488,6 +509,7 @@ public class ReentrantLock implements Lock, java.io.Serializable {
      *
      * @throws IllegalMonitorStateException if the current thread does not
      *         hold this lock
+     * 由于“公平锁”是可重入的，所以对于同一个线程，每释放锁一次，锁的状态-1。
      */
     public void unlock() {
         sync.release(1);

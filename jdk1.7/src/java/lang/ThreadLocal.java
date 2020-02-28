@@ -371,6 +371,10 @@ public class ThreadLocal<T> {
          *
          * @param  key the thread local object
          * @return the entry associated with key, or null if no such
+         *
+         * 由于采用了开放定址法，所以当前key的散列值和元素在数组的索引并不是完全对应的，
+         * 首先取一个探测数（key的散列值），如果所对应的key就是我们所要找的元素，则返回，
+         * 否则调用getEntryAfterMiss()
          */
         private Entry getEntry(ThreadLocal key) {
             int i = key.threadLocalHashCode & (table.length - 1);
@@ -399,6 +403,7 @@ public class ThreadLocal<T> {
                 if (k == key)
                     return e;
                 if (k == null)
+                    //该方法用于处理key == null，有利于GC回收，能够有效地避免内存泄漏
                     expungeStaleEntry(i);
                 else
                     i = nextIndex(i, len);
