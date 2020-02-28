@@ -39,7 +39,9 @@ public interface ReadWriteLock {
 }
 ```
 
+#### 读写锁状态划分方式
 
+<img src="https://github.com/muyutingfeng/jdk-source-analysis/raw/master/note/doc/java/util/concurrent/locks/ReentrantReadWriteLock/%E8%AF%BB%E5%86%99%E9%94%81%E7%8A%B6%E6%80%81%E5%88%92%E5%88%86%E6%96%B9%E5%BC%8F.png?raw=true" alt="ReentrantReadWriteLock" style="zoom:50%;" />
 
 ## ReentrantReadWriteLock
 
