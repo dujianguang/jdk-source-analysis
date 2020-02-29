@@ -213,63 +213,87 @@ public class LinkedBlockingDeque<E>
 
     /**
      * Links node as first element, or returns false if full.
+     *
+     * 设置node节点队列的列头节点，成功返回true，如果队列满了返回false。
      */
     private boolean linkFirst(Node<E> node) {
         // assert lock.isHeldByCurrentThread();
+        // 超出容量
         if (count >= capacity)
             return false;
+        // 新节点的next指向原first
         Node<E> f = first;
         node.next = f;
+        // 设置node为新的first
         first = node;
+        // 没有尾节点，设置node为尾节点
         if (last == null)
             last = node;
+            // 有尾节点，那就将之前first的pre指向新增node
         else
             f.prev = node;
         ++count;
+        // 唤醒notEmpty
         notEmpty.signal();
         return true;
     }
 
     /**
      * Links node as last element, or returns false if full.
+     *
+     * 调用linkLast将节点Node链接到队列尾部
      */
     private boolean linkLast(Node<E> node) {
         // assert lock.isHeldByCurrentThread();
         if (count >= capacity)
             return false;
+        // 尾节点
         Node<E> l = last;
+        // 将Node的前驱指向原本的last
         node.prev = l;
+        // 将node设置为last
         last = node;
+        // 首节点为null，则设置node为first
         if (first == null)
             first = node;
         else
+            //非null，说明之前的last有值，就将之前的last的next指向node
             l.next = node;
         ++count;
         notEmpty.signal();
         return true;
     }
 
+
     /**
      * Removes and returns first element, or null if empty.
      */
     private E unlinkFirst() {
         // assert lock.isHeldByCurrentThread();
+        //首节点
         Node<E> f = first;
+        //空队列,直接返回null
         if (f == null)
             return null;
+        //first.next
         Node<E> n = f.next;
+        //节点item
         E item = f.item;
+        // 移除掉first ==> first = first.next
         f.item = null;
         f.next = f; // help GC
         first = n;
+        // 移除后为空队列，仅有一个节点
         if (n == null)
             last = null;
         else
+            // n的pre原来指向之前的first，现在n变为first了，pre指向null
             n.prev = null;
         --count;
         notFull.signal();
         return item;
     }
+
 
     /**
      * Removes and returns last element, or null if empty.
@@ -368,14 +392,18 @@ public class LinkedBlockingDeque<E>
     /**
      * @throws NullPointerException {@inheritDoc}
      * @throws InterruptedException {@inheritDoc}
+     *
+     * 将指定的元素插入此双端队列的开头，必要时将一直等待可用空间。
      */
     public void putFirst(E e) throws InterruptedException {
         if (e == null) throw new NullPointerException();
         Node<E> node = new Node<E>(e);
+        //获取锁
         final ReentrantLock lock = this.lock;
         lock.lock();
         try {
             while (!linkFirst(node))
+                // 在notFull条件上等待，直到被唤醒或中断
                 notFull.await();
         } finally {
             lock.unlock();
@@ -385,6 +413,8 @@ public class LinkedBlockingDeque<E>
     /**
      * @throws NullPointerException {@inheritDoc}
      * @throws InterruptedException {@inheritDoc}
+     *
+     * 将指定的元素插入此双端队列的末尾，必要时将一直等待可用空间。
      */
     public void putLast(E e) throws InterruptedException {
         if (e == null) throw new NullPointerException();
@@ -392,6 +422,7 @@ public class LinkedBlockingDeque<E>
         final ReentrantLock lock = this.lock;
         lock.lock();
         try {
+            //linkLast将节点Node链接到队列尾部
             while (!linkLast(node))
                 notFull.await();
         } finally {
@@ -463,20 +494,24 @@ public class LinkedBlockingDeque<E>
         return x;
     }
 
+    //获取并移除此双端队列的第一个元素；如果此双端队列为空，则返回 null。
     public E pollFirst() {
         final ReentrantLock lock = this.lock;
         lock.lock();
         try {
+            //调用unlinkFirst移除队列首元素
             return unlinkFirst();
         } finally {
             lock.unlock();
         }
     }
 
+    //获取并移除此双端队列的最后一个元素；如果此双端队列为空，则返回 null。
     public E pollLast() {
         final ReentrantLock lock = this.lock;
         lock.lock();
         try {
+            //调用unlinkLast移除尾结点，链表空返回null
             return unlinkLast();
         } finally {
             lock.unlock();
