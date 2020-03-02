@@ -160,10 +160,7 @@ import java.io.IOException;
  * @see     Hashtable
  * @since   1.4
  */
-public class LinkedHashMap<K,V>
-    extends HashMap<K,V>
-    implements Map<K,V>
-{
+public class LinkedHashMap<K,V> extends HashMap<K,V> implements Map<K,V> {
 
     /*
      * Implementation note.  A previous version of this class was
@@ -188,8 +185,13 @@ public class LinkedHashMap<K,V>
 
     /**
      * HashMap.Node subclass for normal LinkedHashMap entries.
+     *
+     * 内部数据结构，继承自 HashMap 中的 Node
      */
-    static class Entry<K,V> extends HashMap.Node<K,V> {
+    static class Entry<K,V> extends Node<K,V> {
+        /**
+         * 用于构成双向链表，维护 LinkedHashMap 的顺序
+         */
         Entry<K,V> before, after;
         Entry(int hash, K key, V value, Node<K,V> next) {
             super(hash, key, value, next);
@@ -200,17 +202,25 @@ public class LinkedHashMap<K,V>
 
     /**
      * The head (eldest) of the doubly linked list.
+     *
+     * 双向链表的头结点
      */
     transient LinkedHashMap.Entry<K,V> head;
 
     /**
      * The tail (youngest) of the doubly linked list.
+     *
+     * 双向链表的尾节点
      */
     transient LinkedHashMap.Entry<K,V> tail;
 
     /**
      * The iteration ordering method for this linked hash map: <tt>true</tt>
      * for access-order, <tt>false</tt> for insertion-order.
+     *
+     * 键值对迭代顺序策略
+     * true：access-order     访问顺序，使用迭代器遍历时，get 的元素会被添加到最后
+     * false：insertion-order 插入顺序
      *
      * @serial
      */
@@ -219,22 +229,40 @@ public class LinkedHashMap<K,V>
     // internal utilities
 
     // link at the end of list
+
+    /**
+     * 在尾部插入加点
+     *
+     * @param p
+     */
     private void linkNodeLast(LinkedHashMap.Entry<K,V> p) {
+        // 获取并记录 tail 节点
         LinkedHashMap.Entry<K,V> last = tail;
+        // 重置 tail
         tail = p;
         if (last == null)
             head = p;
         else {
+            // 将节点连接起来，构成双向链表
             p.before = last;
             last.after = p;
         }
     }
 
     // apply src's links to dst
+
+    /**
+     * 使用某个节点替换当前节点
+     *
+     * @param src
+     * @param dst
+     */
     private void transferLinks(LinkedHashMap.Entry<K,V> src,
                                LinkedHashMap.Entry<K,V> dst) {
+        // 获取当前节点前后节点
         LinkedHashMap.Entry<K,V> b = dst.before = src.before;
         LinkedHashMap.Entry<K,V> a = dst.after = src.after;
+        // 替换节点
         if (b == null)
             head = dst;
         else
@@ -252,9 +280,22 @@ public class LinkedHashMap<K,V>
         head = tail = null;
     }
 
+    /**
+     * PS：HashMap 在添加键值对的时候都是通过创建节点的方式
+     *
+     * 重写 HashMap 中的 newNode 方法
+     *
+     * @param hash
+     * @param key
+     * @param value
+     * @param e
+     * @return
+     */
     Node<K,V> newNode(int hash, K key, V value, Node<K,V> e) {
+        // 初始化 LinkedHashMap 键值对 Entry
         LinkedHashMap.Entry<K,V> p =
             new LinkedHashMap.Entry<K,V>(hash, key, value, e);
+        // 这一步很重要，添加的键值对都会被添加到 LinkedHashMap 尾部，因此可以形成一个双向链表
         linkNodeLast(p);
         return p;
     }
@@ -267,8 +308,18 @@ public class LinkedHashMap<K,V>
         return t;
     }
 
+    /**
+     * 树节点方法重写
+     *
+     * @param hash
+     * @param key
+     * @param value
+     * @param next
+     * @return
+     */
     TreeNode<K,V> newTreeNode(int hash, K key, V value, Node<K,V> next) {
         TreeNode<K,V> p = new TreeNode<K,V>(hash, key, value, next);
+        // 同上
         linkNodeLast(p);
         return p;
     }
@@ -280,10 +331,19 @@ public class LinkedHashMap<K,V>
         return t;
     }
 
+    /**
+     * 重写 HashMap 中的方法，HashMap 中为空方法
+     * 在移除键值对时使用，用来维持双向链表的正确性
+     *
+     * @param e
+     */
     void afterNodeRemoval(Node<K,V> e) { // unlink
+        // 获取当前节点的前后节点
         LinkedHashMap.Entry<K,V> p =
             (LinkedHashMap.Entry<K,V>)e, b = p.before, a = p.after;
+        // GC 回收
         p.before = p.after = null;
+        // 维持双向链表，移除当前节点
         if (b == null)
             head = a;
         else
@@ -302,14 +362,24 @@ public class LinkedHashMap<K,V>
         }
     }
 
+    /**
+     * 如果键值对的迭代策略是 access-order（true），在获取键值后会移动该键值对到尾节点
+     *
+     * @param e
+     */
     void afterNodeAccess(Node<K,V> e) { // move node to last
         LinkedHashMap.Entry<K,V> last;
+        // 判断迭代策略，并且当前节点不是尾节点
         if (accessOrder && (last = tail) != e) {
+            // 记录当前节点，并获取前后节点
             LinkedHashMap.Entry<K,V> p =
                 (LinkedHashMap.Entry<K,V>)e, b = p.before, a = p.after;
+            // 把当前节点的 after 节点置 null
             p.after = null;
+            // 如果当前节点是头节点，把后一个节点置为头节点
             if (b == null)
                 head = a;
+            // 把当前节点的前后节点相连
             else
                 b.after = a;
             if (a != null)
@@ -318,6 +388,7 @@ public class LinkedHashMap<K,V>
                 last = b;
             if (last == null)
                 head = p;
+            // 把当前节点置为尾节点并记录
             else {
                 p.before = last;
                 last.after = p;
@@ -338,6 +409,8 @@ public class LinkedHashMap<K,V>
      * Constructs an empty insertion-ordered <tt>LinkedHashMap</tt> instance
      * with the specified initial capacity and load factor.
      *
+     * 直接调用 HashMap 中的构造函数
+     *
      * @param  initialCapacity the initial capacity
      * @param  loadFactor      the load factor
      * @throws IllegalArgumentException if the initial capacity is negative
@@ -345,6 +418,7 @@ public class LinkedHashMap<K,V>
      */
     public LinkedHashMap(int initialCapacity, float loadFactor) {
         super(initialCapacity, loadFactor);
+        // 迭代元素采用插入顺序策略
         accessOrder = false;
     }
 
@@ -357,15 +431,19 @@ public class LinkedHashMap<K,V>
      */
     public LinkedHashMap(int initialCapacity) {
         super(initialCapacity);
+        // 迭代元素采用插入顺序策略
         accessOrder = false;
     }
 
     /**
      * Constructs an empty insertion-ordered <tt>LinkedHashMap</tt> instance
      * with the default initial capacity (16) and load factor (0.75).
+     *
+     * 无参构造函数，默认的初始容量为 16，加载因子为 0.75
      */
     public LinkedHashMap() {
         super();
+        // 迭代元素采用插入顺序策略
         accessOrder = false;
     }
 
@@ -374,6 +452,8 @@ public class LinkedHashMap<K,V>
      * the same mappings as the specified map.  The <tt>LinkedHashMap</tt>
      * instance is created with a default load factor (0.75) and an initial
      * capacity sufficient to hold the mappings in the specified map.
+     *
+     * 同 HashMap ...
      *
      * @param  m the map whose mappings are to be placed in this map
      * @throws NullPointerException if the specified map is null
@@ -387,6 +467,8 @@ public class LinkedHashMap<K,V>
     /**
      * Constructs an empty <tt>LinkedHashMap</tt> instance with the
      * specified initial capacity, load factor and ordering mode.
+     *
+     * 指定迭代元素策略的构造函数
      *
      * @param  initialCapacity the initial capacity
      * @param  loadFactor      the load factor
@@ -407,11 +489,20 @@ public class LinkedHashMap<K,V>
      * Returns <tt>true</tt> if this map maps one or more keys to the
      * specified value.
      *
+     * 当前 LinkedHashMap 是否包含指定的 value
+     *
+     * 与 hashMap 区别：
+     * 1.HashMap 中遍历哈希表中的所有桶，然后遍历所有节点
+     * 2.LinkedHashMap 通过头节点遍历，一直遍历到尾节点
+     *
      * @param value value whose presence in this map is to be tested
      * @return <tt>true</tt> if this map maps one or more keys to the
      *         specified value
      */
     public boolean containsValue(Object value) {
+        /**
+         * 遍历双向链表，判断 value，与 HashMap 完全不同
+         */
         for (LinkedHashMap.Entry<K,V> e = head; e != null; e = e.after) {
             V v = e.value;
             if (v == value || (value != null && value.equals(v)))
@@ -434,17 +525,24 @@ public class LinkedHashMap<K,V>
      * possible that the map explicitly maps the key to {@code null}.
      * The {@link #containsKey containsKey} operation may be used to
      * distinguish these two cases.
+     *
+     * 根据 key 获取对应的 value
      */
     public V get(Object key) {
         Node<K,V> e;
+        // 调用 hashMap 中的 getNode() 方法，根据 key 的哈希值找到对应的桶位置，判断节点后（链表、头结点、树节点）进行返回
         if ((e = getNode(hash(key), key)) == null)
             return null;
+        // 如果 accessOrder 为 true，获取元素后把当前键值对调整到尾部
         if (accessOrder)
             afterNodeAccess(e);
         return e.value;
     }
 
     /**
+     * 根据 key 获取元素，如果不存在返回默认值
+     * 用户 HashMap
+     *
      * {@inheritDoc}
      */
     public V getOrDefault(Object key, V defaultValue) {
@@ -458,6 +556,7 @@ public class LinkedHashMap<K,V>
 
     /**
      * {@inheritDoc}
+     * 清空所有键值对（遍历所有桶，置 null），并将头尾节点值 null
      */
     public void clear() {
         super.clear();
@@ -705,6 +804,11 @@ public class LinkedHashMap<K,V>
             return next != null;
         }
 
+        /**
+         * 遍历 LinkedHashMap
+         * nextNode 方法返回的是下一个节点
+         * @return
+         */
         final LinkedHashMap.Entry<K,V> nextNode() {
             LinkedHashMap.Entry<K,V> e = next;
             if (modCount != expectedModCount)
@@ -712,6 +816,7 @@ public class LinkedHashMap<K,V>
             if (e == null)
                 throw new NoSuchElementException();
             current = e;
+            // next 为双向链表的下一个节点
             next = e.after;
             return e;
         }
