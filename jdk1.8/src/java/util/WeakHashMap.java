@@ -171,11 +171,16 @@ public class WeakHashMap<K,V>
 
     /**
      * The load factor for the hash table.
+     * 这个扩容阈值就只是简单的扩容阈值了，在哈希表没有初始化时不再表示默认的哈希表容量
      */
     private final float loadFactor;
 
+    /* 上面的属性就不赘述了，与 HashMap 类似*/
+
     /**
      * Reference queue for cleared WeakEntries
+     *
+     * 被 GC 清除的弱引用队列，当执行 GC 时，会将被回收的 entry 放入到该队列中
      */
     private final ReferenceQueue<Object> queue = new ReferenceQueue<>();
 
@@ -190,6 +195,12 @@ public class WeakHashMap<K,V>
      */
     int modCount;
 
+    /**
+     * 创建一个大小为 n 的 Entry 数组
+     *
+     * @param n
+     * @return
+     */
     @SuppressWarnings("unchecked")
     private Entry<K,V>[] newTable(int n) {
         return (Entry<K,V>[]) new Entry<?,?>[n];
@@ -199,26 +210,36 @@ public class WeakHashMap<K,V>
      * Constructs a new, empty <tt>WeakHashMap</tt> with the given initial
      * capacity and the given load factor.
      *
+     * 关键的一个构造函数，与 HashMap 不同，WeakHashMap 会直接在构造函数中初始化哈希表
+     *
      * @param  initialCapacity The initial capacity of the <tt>WeakHashMap</tt>
      * @param  loadFactor      The load factor of the <tt>WeakHashMap</tt>
      * @throws IllegalArgumentException if the initial capacity is negative,
      *         or if the load factor is nonpositive.
      */
     public WeakHashMap(int initialCapacity, float loadFactor) {
+        // 容量判断
         if (initialCapacity < 0)
             throw new IllegalArgumentException("Illegal Initial Capacity: "+
                                                initialCapacity);
         if (initialCapacity > MAXIMUM_CAPACITY)
             initialCapacity = MAXIMUM_CAPACITY;
 
+        // 加载因子判断
         if (loadFactor <= 0 || Float.isNaN(loadFactor))
             throw new IllegalArgumentException("Illegal Load factor: "+
                                                loadFactor);
         int capacity = 1;
+        /**
+         * 通过循环判断的形式初始化哈希表容量，capacity 为大于 initialCapacity 的最小的 2 的幂
+         * 计算初始容量的时候，与 HashMap 是完全不同的，HashMap 是调用 tableSizeFor(int cap) 方法
+         */
         while (capacity < initialCapacity)
             capacity <<= 1;
+        // 初始化哈希表
         table = newTable(capacity);
         this.loadFactor = loadFactor;
+        // 初始化扩容阈值，与 HashMap 也是不同的，注意区分
         threshold = (int)(capacity * loadFactor);
     }
 
@@ -236,6 +257,8 @@ public class WeakHashMap<K,V>
     /**
      * Constructs a new, empty <tt>WeakHashMap</tt> with the default initial
      * capacity (16) and load factor (0.75).
+     *
+     * 无参构造函数，使用默认的容量与加载因子
      */
     public WeakHashMap() {
         this(DEFAULT_INITIAL_CAPACITY, DEFAULT_LOAD_FACTOR);
@@ -262,11 +285,15 @@ public class WeakHashMap<K,V>
 
     /**
      * Value representing null keys inside tables.
+     *
+     * 允许 key 为 null 的情况 {@link IdentityHashMap}
      */
     private static final Object NULL_KEY = new Object();
 
     /**
      * Use NULL_KEY for key if it is null.
+     *
+     * key 判断，与 IdentityHashMap 中的 maskNull(Object key) 同
      */
     private static Object maskNull(Object key) {
         return (key == null) ? NULL_KEY : key;
@@ -282,6 +309,8 @@ public class WeakHashMap<K,V>
     /**
      * Checks for equality of non-null reference x and possibly-null y.  By
      * default uses Object.equals.
+     *
+     * 判断 x 与 y 是否相等
      */
     private static boolean eq(Object x, Object y) {
         return x == y || x.equals(y);
@@ -293,6 +322,8 @@ public class WeakHashMap<K,V>
      * critical because HashMap uses power-of-two length hash tables, that
      * otherwise encounter collisions for hashCodes that do not differ
      * in lower bits.
+     *
+     * 哈希函数
      */
     final int hash(Object k) {
         int h = k.hashCode();
@@ -306,6 +337,8 @@ public class WeakHashMap<K,V>
 
     /**
      * Returns index for hash code h.
+     *
+     * 根据 key 的哈希值计算桶位置
      */
     private static int indexFor(int h, int length) {
         return h & (length-1);
@@ -313,25 +346,38 @@ public class WeakHashMap<K,V>
 
     /**
      * Expunges stale entries from the table.
+     *
+     * 从弱引用队列中取出过期的弱引用队列，在 WeakHashMap 中找到对应的 entry 后删除
      */
     private void expungeStaleEntries() {
+        // 遍历弱引用队列
         for (Object x; (x = queue.poll()) != null; ) {
+            // 同步处理
             synchronized (queue) {
                 @SuppressWarnings("unchecked")
                     Entry<K,V> e = (Entry<K,V>) x;
+                /**
+                 * TODO 计算出桶位置，e 是 entry 为什么计算的不是 key 的哈希值
+                 * 原因是 WeakHashMap 的 key 是弱引用，在上一次 GC 发生时已经被回收，因此不能根据弱引用 key 计算哈希值
+                 */
                 int i = indexFor(e.hash, table.length);
 
+                // 获取哈希表的头节点
                 Entry<K,V> prev = table[i];
                 Entry<K,V> p = prev;
+                // 遍历桶位置上的所有节点
                 while (p != null) {
                     Entry<K,V> next = p.next;
+                    // 若引用队列中的 entry 在当前链表中存在，则删除
                     if (p == e) {
+                        // 如果头节点的 entry 在弱引用队列中，重置头节点为后面的节点
                         if (prev == e)
                             table[i] = next;
                         else
                             prev.next = next;
                         // Must not null out e.next;
                         // stale entries may be in use by a HashIterator
+                        // 把 value 置 null，GC 回收，size --
                         e.value = null; // Help GC
                         size--;
                         break;
@@ -345,6 +391,8 @@ public class WeakHashMap<K,V>
 
     /**
      * Returns the table after first expunging stale entries.
+     *
+     * 获取哈希表
      */
     private Entry<K,V>[] getTable() {
         expungeStaleEntries();
@@ -356,6 +404,8 @@ public class WeakHashMap<K,V>
      * This result is a snapshot, and may not reflect unprocessed
      * entries that will be removed before next attempted access
      * because they are no longer referenced.
+     *
+     * 返回哈希表键值对个数
      */
     public int size() {
         if (size == 0)
@@ -389,14 +439,21 @@ public class WeakHashMap<K,V>
      * The {@link #containsKey containsKey} operation may be used to
      * distinguish these two cases.
      *
+     * 根据 key 获取键值对
+     *
      * @see #put(Object, Object)
      */
     public V get(Object key) {
+        // null key 处理
         Object k = maskNull(key);
         int h = hash(k);
+        // 获取哈希表
         Entry<K,V>[] tab = getTable();
+        // 计算桶位置
         int index = indexFor(h, tab.length);
+        // 获取当前桶位置上的链表
         Entry<K,V> e = tab[index];
+        // 遍历链表查找
         while (e != null) {
             if (e.hash == h && eq(k, e.get()))
                 return e.value;
@@ -420,13 +477,18 @@ public class WeakHashMap<K,V>
     /**
      * Returns the entry associated with the specified key in this map.
      * Returns null if the map contains no mapping for this key.
+     *
+     * 根据 key 获取到对应的 Entry
      */
     Entry<K,V> getEntry(Object key) {
         Object k = maskNull(key);
         int h = hash(k);
         Entry<K,V>[] tab = getTable();
+        // 计算桶位置
         int index = indexFor(h, tab.length);
+        // 获取当前桶位置上的链表
         Entry<K,V> e = tab[index];
+        // 根据哈希值，键进行查找
         while (e != null && !(e.hash == h && eq(k, e.get())))
             e = e.next;
         return e;
@@ -437,6 +499,8 @@ public class WeakHashMap<K,V>
      * If the map previously contained a mapping for this key, the old
      * value is replaced.
      *
+     * 向哈希表中添加键值对
+     *
      * @param key key with which the specified value is to be associated.
      * @param value value to be associated with the specified key.
      * @return the previous value associated with <tt>key</tt>, or
@@ -446,11 +510,19 @@ public class WeakHashMap<K,V>
      */
     public V put(K key, V value) {
         Object k = maskNull(key);
+        // 计算 key 的哈希值
         int h = hash(k);
+        // 获取哈希表
         Entry<K,V>[] tab = getTable();
+        // 当前 key 桶位置
         int i = indexFor(h, tab.length);
 
         for (Entry<K,V> e = tab[i]; e != null; e = e.next) {
+            /**
+             * e.get() 用于返回引用，如果该引用对象已被程序或垃圾收集器清除，此方法返回 null
+             * eq(k, e.get()) 用于判断 key 与引用
+             */
+            // key 存在，value 覆盖
             if (h == e.hash && eq(k, e.get())) {
                 V oldValue = e.value;
                 if (value != oldValue)
@@ -460,8 +532,11 @@ public class WeakHashMap<K,V>
         }
 
         modCount++;
+        // key 不存在
         Entry<K,V> e = tab[i];
+        // 头插法插入新键值对
         tab[i] = new Entry<>(k, value, queue, h, e);
+        // size ++，并判断是否需要扩容，扩容为原哈希表的 2 倍
         if (++size >= threshold)
             resize(tab.length * 2);
         return null;
@@ -476,12 +551,15 @@ public class WeakHashMap<K,V>
      * resize the map, but sets threshold to Integer.MAX_VALUE.
      * This has the effect of preventing future calls.
      *
+     * 扩容机制，在调用该方法之前 newCapacity 已经对以前的容量进行了 2 倍的扩容
+     *
      * @param newCapacity the new capacity, MUST be a power of two;
      *        must be greater than current capacity unless current
      *        capacity is MAXIMUM_CAPACITY (in which case value
      *        is irrelevant).
      */
     void resize(int newCapacity) {
+        // 获取老得哈希表，去除了被 GC 回收的键值对
         Entry<K,V>[] oldTable = getTable();
         int oldCapacity = oldTable.length;
         if (oldCapacity == MAXIMUM_CAPACITY) {
@@ -489,19 +567,27 @@ public class WeakHashMap<K,V>
             return;
         }
 
+        /**
+         * 新的哈希表数组
+         */
         Entry<K,V>[] newTable = newTable(newCapacity);
+        // 新老哈希表转换（rehash）
         transfer(oldTable, newTable);
+        // 重置哈希表
         table = newTable;
 
         /*
          * If ignoring null elements and processing ref queue caused massive
          * shrinkage, then restore old table.  This should be rare, but avoids
          * unbounded expansion of garbage-filled tables.
+         *
+         * 在 getTable() 时可能会有键值对被回收，这么说不太准确，value 被回收时，可能导致新的哈希表容量很小
          */
         if (size >= threshold / 2) {
             threshold = (int)(newCapacity * loadFactor);
         } else {
             expungeStaleEntries();
+            // 把新的哈希表再转回老哈希表
             transfer(newTable, oldTable);
             table = oldTable;
         }
@@ -510,18 +596,25 @@ public class WeakHashMap<K,V>
     /** Transfers all entries from src to dest tables */
     private void transfer(Entry<K,V>[] src, Entry<K,V>[] dest) {
         for (int j = 0; j < src.length; ++j) {
+            // 获取当前桶位置上的链表（头节点）
             Entry<K,V> e = src[j];
+            // 老哈希表桶位置置 null，GC 回收
             src[j] = null;
             while (e != null) {
                 Entry<K,V> next = e.next;
+                // 获取若引用 key
                 Object key = e.get();
+                // 如果 key 为 null，说明已经被 GC 回收，此时需要把对应的 value 也置 null
                 if (key == null) {
                     e.next = null;  // Help GC
                     e.value = null; //  "   "
                     size--;
                 } else {
+                    // 计算哈希值，进行 rehash，为什么根据 entry 计算桶位置？
                     int i = indexFor(e.hash, dest.length);
+                    // 头插法
                     e.next = dest[i];
+                    // 相当于重置头节点
                     dest[i] = e;
                 }
                 e = next;
@@ -534,10 +627,13 @@ public class WeakHashMap<K,V>
      * These mappings will replace any mappings that this map had for any
      * of the keys currently in the specified map.
      *
+     * 该方法只在 WeakHashMap 的构造函数中使用过一次
+     *
      * @param m mappings to be stored in this map.
      * @throws  NullPointerException if the specified map is null.
      */
     public void putAll(Map<? extends K, ? extends V> m) {
+        // 获取 m 键值对总数
         int numKeysToBeAdded = m.size();
         if (numKeysToBeAdded == 0)
             return;
@@ -551,17 +647,22 @@ public class WeakHashMap<K,V>
          * By using the conservative calculation, we subject ourself
          * to at most one extra resize.
          */
+        // 扩容
         if (numKeysToBeAdded > threshold) {
+            // 根据阈值计算容量大小，并加 1，保证一定可以存储下所有键值对
             int targetCapacity = (int)(numKeysToBeAdded / loadFactor + 1);
             if (targetCapacity > MAXIMUM_CAPACITY)
                 targetCapacity = MAXIMUM_CAPACITY;
             int newCapacity = table.length;
+            // 获取大于 targetCapacity 的最小的 2 的幂
             while (newCapacity < targetCapacity)
                 newCapacity <<= 1;
+            // TODO 为什么要 rehash，不直接赋值新的数组
             if (newCapacity > table.length)
                 resize(newCapacity);
         }
 
+        // 添加键值对
         for (Map.Entry<? extends K, ? extends V> e : m.entrySet())
             put(e.getKey(), e.getValue());
     }
@@ -582,29 +683,40 @@ public class WeakHashMap<K,V>
      * <p>The map will not contain a mapping for the specified key once the
      * call returns.
      *
+     * 根据 key 移除键值对
+     *
      * @param key key whose mapping is to be removed from the map
      * @return the previous value associated with <tt>key</tt>, or
      *         <tt>null</tt> if there was no mapping for <tt>key</tt>
      */
     public V remove(Object key) {
+        // null key 判断并处理
         Object k = maskNull(key);
         int h = hash(k);
+        // 获取删除弱引用后的哈希表
         Entry<K,V>[] tab = getTable();
+        // 计算桶位置
         int i = indexFor(h, tab.length);
+        // 相当于两个标记互为犄角...
         Entry<K,V> prev = tab[i];
         Entry<K,V> e = prev;
 
         while (e != null) {
             Entry<K,V> next = e.next;
+            // 找到对应的 key
             if (h == e.hash && eq(k, e.get())) {
                 modCount++;
+                // 更新键值对数量
                 size--;
+                // 如果是头节点，把后一个节点置为头节点
                 if (prev == e)
                     tab[i] = next;
                 else
                     prev.next = next;
+                // 返回对应的 value
                 return e.value;
             }
+            // 重置节点，互为犄角...哈哈哈～ 把我看笑了...
             prev = e;
             e = next;
         }
@@ -645,10 +757,14 @@ public class WeakHashMap<K,V>
     /**
      * Removes all of the mappings from this map.
      * The map will be empty after this call returns.
+     *
+     * 清空所有的键值对
+     *
      */
     public void clear() {
         // clear out ref queue. We don't need to expunge entries
         // since table is getting cleared.
+        // 清除引用队列中的所有元素
         while (queue.poll() != null)
             ;
 
@@ -667,14 +783,18 @@ public class WeakHashMap<K,V>
      * Returns <tt>true</tt> if this map maps one or more keys to the
      * specified value.
      *
+     * 判断是够包含指定的 value
+     *
      * @param value value whose presence in this map is to be tested
      * @return <tt>true</tt> if this map maps one or more keys to the
      *         specified value
      */
     public boolean containsValue(Object value) {
+        // value 为 null 特殊处理
         if (value==null)
             return containsNullValue();
 
+        // value 不为 null 的处理方式
         Entry<K,V>[] tab = getTable();
         for (int i = tab.length; i-- > 0;)
             for (Entry<K,V> e = tab[i]; e != null; e = e.next)
@@ -685,9 +805,11 @@ public class WeakHashMap<K,V>
 
     /**
      * Special-case code for containsValue with null argument
+     * 处理 value 为 null 的特例
      */
     private boolean containsNullValue() {
         Entry<K,V>[] tab = getTable();
+        // 遍历所有桶，然后遍历桶位置上的链表进行判断
         for (int i = tab.length; i-- > 0;)
             for (Entry<K,V> e = tab[i]; e != null; e = e.next)
                 if (e.value==null)
@@ -698,6 +820,9 @@ public class WeakHashMap<K,V>
     /**
      * The entries in this hash table extend WeakReference, using its main ref
      * field as the key.
+     *
+     * 内部数据结构，继承自 WeakReference
+     * 若引用描述的对象只能生存到下一次垃圾收集器之前，当垃圾收集器工作时，无论是否足够都会回收被弱引用关联的对象
      */
     private static class Entry<K,V> extends WeakReference<Object> implements Map.Entry<K,V> {
         V value;
@@ -710,6 +835,7 @@ public class WeakHashMap<K,V>
         Entry(Object key, V value,
               ReferenceQueue<Object> queue,
               int hash, Entry<K,V> next) {
+            // 注意：key 为若引用
             super(key, queue);
             this.value = value;
             this.hash  = hash;

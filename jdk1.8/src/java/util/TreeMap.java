@@ -116,10 +116,15 @@ public class TreeMap<K,V>
      * The comparator used to maintain order in this tree map, or
      * null if it uses the natural ordering of its keys.
      *
+     * 比较器，在没有自定义比较器的情况下使用自然排序
+     *
      * @serial
      */
     private final Comparator<? super K> comparator;
 
+    /**
+     * 根节点
+     */
     private transient Entry<K,V> root;
 
     /**
@@ -219,6 +224,8 @@ public class TreeMap<K,V>
      * Returns {@code true} if this map contains a mapping for the specified
      * key.
      *
+     * 判断是否包含指定的 key
+     *
      * @param key key whose presence in this map is to be tested
      * @return {@code true} if this map contains a mapping for the
      *         specified key
@@ -240,12 +247,15 @@ public class TreeMap<K,V>
      * operation will probably require time linear in the map size for
      * most implementations.
      *
+     * 判断是否包含指定的 value
+     *
      * @param value value whose presence in this map is to be tested
      * @return {@code true} if a mapping to {@code value} exists;
      *         {@code false} otherwise
      * @since 1.2
      */
     public boolean containsValue(Object value) {
+        // 获取最小的左孩子节点，然后从该节点开始一直遍历后继节点
         for (Entry<K,V> e = getFirstEntry(); e != null; e = successor(e))
             if (valEquals(value, e.value))
                 return true;
@@ -268,6 +278,8 @@ public class TreeMap<K,V>
      * The {@link #containsKey containsKey} operation may be used to
      * distinguish these two cases.
      *
+     * 根据 key 获取对应的 value，相对来说该方法比较简单
+     *
      * @throws ClassCastException if the specified key cannot be compared
      *         with the keys currently in the map
      * @throws NullPointerException if the specified key is null
@@ -275,6 +287,7 @@ public class TreeMap<K,V>
      *         does not permit null keys
      */
     public V get(Object key) {
+        // 根据 key 获取到对应的 Entry
         Entry<K,V> p = getEntry(key);
         return (p==null ? null : p.value);
     }
@@ -284,6 +297,8 @@ public class TreeMap<K,V>
     }
 
     /**
+     * 获取值最小的键
+     *
      * @throws NoSuchElementException {@inheritDoc}
      */
     public K firstKey() {
@@ -291,6 +306,8 @@ public class TreeMap<K,V>
     }
 
     /**
+     * 获取值最大的键
+     *
      * @throws NoSuchElementException {@inheritDoc}
      */
     public K lastKey() {
@@ -331,6 +348,8 @@ public class TreeMap<K,V>
      * Returns this map's entry for the given key, or {@code null} if the map
      * does not contain an entry for the key.
      *
+     * 根据 key 获取对应的节点
+     *
      * @return this map's entry for the given key, or {@code null} if the map
      *         does not contain an entry for the key
      * @throws ClassCastException if the specified key cannot be compared
@@ -341,15 +360,19 @@ public class TreeMap<K,V>
      */
     final Entry<K,V> getEntry(Object key) {
         // Offload comparator-based version for sake of performance
+        // 基于比较器的查找
         if (comparator != null)
             return getEntryUsingComparator(key);
+        // key 不允许为 null
         if (key == null)
             throw new NullPointerException();
         @SuppressWarnings("unchecked")
             Comparable<? super K> k = (Comparable<? super K>) key;
+        // 记录根节点
         Entry<K,V> p = root;
         while (p != null) {
             int cmp = k.compareTo(p.key);
+            // 判断从左孩子还是右孩子继续查找
             if (cmp < 0)
                 p = p.left;
             else if (cmp > 0)
@@ -365,6 +388,8 @@ public class TreeMap<K,V>
      * for performance. (This is not worth doing for most methods,
      * that are less dependent on comparator performance, but is
      * worthwhile here.)
+     *
+     * 自定义比较器情况下根据 key 获取对应的 value
      */
     final Entry<K,V> getEntryUsingComparator(Object key) {
         @SuppressWarnings("unchecked")
@@ -519,6 +544,8 @@ public class TreeMap<K,V>
      * If the map previously contained a mapping for the key, the old
      * value is replaced.
      *
+     * 添加键值对
+     *
      * @param key key with which the specified value is to be associated
      * @param value value to be associated with the specified key
      *
@@ -533,11 +560,15 @@ public class TreeMap<K,V>
      *         does not permit null keys
      */
     public V put(K key, V value) {
+        // 获取根节点
         Entry<K,V> t = root;
+        // 没有任何节点时初始化根节点
         if (t == null) {
             compare(key, key); // type (and possibly null) check
 
+            // 初始化根节点
             root = new Entry<>(key, value, null);
+            // size = 1
             size = 1;
             modCount++;
             return null;
@@ -546,6 +577,7 @@ public class TreeMap<K,V>
         Entry<K,V> parent;
         // split comparator and comparable paths
         Comparator<? super K> cpr = comparator;
+        // 自定义比较器的情况下寻找插入位置
         if (cpr != null) {
             do {
                 parent = t;
@@ -559,26 +591,32 @@ public class TreeMap<K,V>
             } while (t != null);
         }
         else {
+            // 没有自定义比较器
             if (key == null)
                 throw new NullPointerException();
             @SuppressWarnings("unchecked")
                 Comparable<? super K> k = (Comparable<? super K>) key;
+            // 通过遍历找到插入的位置（父节点）
             do {
                 parent = t;
+                // 从根节点开始比较，如果当前 key 比父节点小则从父节点左孩子继续查找插入位置，反之从父节点右孩子查找插入位置
                 cmp = k.compareTo(t.key);
                 if (cmp < 0)
                     t = t.left;
                 else if (cmp > 0)
                     t = t.right;
                 else
+                    // key 存在更新 value
                     return t.setValue(value);
             } while (t != null);
         }
         Entry<K,V> e = new Entry<>(key, value, parent);
+        // 根据 key 大小判断插入左边还是右边（左右孩子）
         if (cmp < 0)
             parent.left = e;
         else
             parent.right = e;
+        // 调整红黑树颜色
         fixAfterInsertion(e);
         size++;
         modCount++;
@@ -587,6 +625,8 @@ public class TreeMap<K,V>
 
     /**
      * Removes the mapping for this key from this TreeMap if present.
+     *
+     * 根据 key 移除键值对
      *
      * @param  key key for which mapping should be removed
      * @return the previous value associated with {@code key}, or
@@ -600,11 +640,13 @@ public class TreeMap<K,V>
      *         does not permit null keys
      */
     public V remove(Object key) {
+        // 获取到对应的 Entry
         Entry<K,V> p = getEntry(key);
         if (p == null)
             return null;
 
         V oldValue = p.value;
+        // 删除该节点
         deleteEntry(p);
         return oldValue;
     }
@@ -612,10 +654,13 @@ public class TreeMap<K,V>
     /**
      * Removes all of the mappings from this map.
      * The map will be empty after this call returns.
+     *
+     * 清除所有键值对
      */
     public void clear() {
         modCount++;
         size = 0;
+        // 把根节点置 null
         root = null;
     }
 
@@ -668,6 +713,8 @@ public class TreeMap<K,V>
     }
 
     /**
+     * 移除最小的键值对并返回
+     *
      * @since 1.6
      */
     public Map.Entry<K,V> pollFirstEntry() {
@@ -1183,6 +1230,8 @@ public class TreeMap<K,V>
 
     /**
      * Base class for TreeMap Iterators
+     *
+     * 迭代器类
      */
     abstract class PrivateEntryIterator<T> implements Iterator<T> {
         Entry<K,V> next;
@@ -1199,12 +1248,18 @@ public class TreeMap<K,V>
             return next != null;
         }
 
+        /**
+         * 返回下后继节点
+         *
+         * @return
+         */
         final Entry<K,V> nextEntry() {
             Entry<K,V> e = next;
             if (e == null)
                 throw new NoSuchElementException();
             if (modCount != expectedModCount)
                 throw new ConcurrentModificationException();
+            // 重置 next 为当前节点的后继节点
             next = successor(e);
             lastReturned = e;
             return e;
@@ -1294,6 +1349,8 @@ public class TreeMap<K,V>
     /**
      * Test two values for equality.  Differs from o1.equals(o2) only in
      * that it copes with {@code null} o1 properly.
+     *
+     * 判断 o1 与 o2 是否相同，该方法用于比较 value
      */
     static final boolean valEquals(Object o1, Object o2) {
         return (o1==null ? o2==null : o1.equals(o2));
@@ -1316,6 +1373,8 @@ public class TreeMap<K,V>
 
     /**
      * Returns the key corresponding to the specified Entry.
+     *
+     * 根据 entry 获取 key 值
      * @throws NoSuchElementException if the Entry is null
      */
     static <K> K key(Entry<K,?> e) {
@@ -2044,6 +2103,8 @@ public class TreeMap<K,V>
     /**
      * Node in the Tree.  Doubles as a means to pass key-value pairs back to
      * user (see Map.Entry).
+     *
+     * 底层数据结构
      */
 
     static final class Entry<K,V> implements Map.Entry<K,V> {
@@ -2117,9 +2178,12 @@ public class TreeMap<K,V>
     /**
      * Returns the first Entry in the TreeMap (according to the TreeMap's
      * key-sort function).  Returns null if the TreeMap is empty.
+     *
+     * 自然排序下返回最小的键值对节点
      */
     final Entry<K,V> getFirstEntry() {
         Entry<K,V> p = root;
+        // 一直从左孩子开始查找
         if (p != null)
             while (p.left != null)
                 p = p.left;
@@ -2129,9 +2193,12 @@ public class TreeMap<K,V>
     /**
      * Returns the last Entry in the TreeMap (according to the TreeMap's
      * key-sort function).  Returns null if the TreeMap is empty.
+     *
+     * 自然排序下返回最大的键值对节点
      */
     final Entry<K,V> getLastEntry() {
         Entry<K,V> p = root;
+        // 一直从右孩子开始查找
         if (p != null)
             while (p.right != null)
                 p = p.right;
@@ -2145,15 +2212,23 @@ public class TreeMap<K,V>
         if (t == null)
             return null;
         else if (t.right != null) {
+            // 获取右孩子节点
             Entry<K,V> p = t.right;
+            // 从右孩子节点的左孩子节点开始一直查找
             while (p.left != null)
                 p = p.left;
             return p;
         } else {
+            // 获取父节点
             Entry<K,V> p = t.parent;
+            // 记录当前节点
             Entry<K,V> ch = t;
+            // 获取父节点的右孩子节点，ch == p.right 用于判断是右孩子节点
+            // 如果是右节点一直向上查找，如果判断了不是右节点直接结束循转，该节点就是后继节点
             while (p != null && ch == p.right) {
+                // 记录父节点
                 ch = p;
+                // 重置父节点
                 p = p.parent;
             }
             return p;
@@ -2192,31 +2267,79 @@ public class TreeMap<K,V>
      * algorithms.
      */
 
+    /**
+     * 返回当前节点的颜色，为 null 时默认为黑色
+     *
+     * @param p
+     * @param <K>
+     * @param <V>
+     * @return
+     */
     private static <K,V> boolean colorOf(Entry<K,V> p) {
         return (p == null ? BLACK : p.color);
     }
 
+    /**
+     * 返回当前节点的父节点
+     *
+     * @param p
+     * @param <K>
+     * @param <V>
+     * @return
+     */
     private static <K,V> Entry<K,V> parentOf(Entry<K,V> p) {
         return (p == null ? null: p.parent);
     }
 
+    /**
+     * 设置节点的颜色
+     *
+     * @param p
+     * @param c
+     * @param <K>
+     * @param <V>
+     */
     private static <K,V> void setColor(Entry<K,V> p, boolean c) {
         if (p != null)
             p.color = c;
     }
 
+    /**
+     * 返回当前节点的左孩子节点
+     *
+     * @param p
+     * @param <K>
+     * @param <V>
+     * @return
+     */
     private static <K,V> Entry<K,V> leftOf(Entry<K,V> p) {
         return (p == null) ? null: p.left;
     }
 
+    /**
+     * 返回当前节点的右孩子节点
+     *
+     * @param p
+     * @param <K>
+     * @param <V>
+     * @return
+     */
     private static <K,V> Entry<K,V> rightOf(Entry<K,V> p) {
         return (p == null) ? null: p.right;
     }
 
-    /** From CLR */
+    /**
+     * 左旋
+     *
+     * 左旋与右旋的代码晦涩难懂，后面以配图进行说明
+     *
+     * @param p
+     */
     private void rotateLeft(Entry<K,V> p) {
         if (p != null) {
+            // 记录右孩子节点
             Entry<K,V> r = p.right;
+            // 将右孩子的左孩子置为当前节点的右孩子
             p.right = r.left;
             if (r.left != null)
                 r.left.parent = p;
@@ -2232,7 +2355,11 @@ public class TreeMap<K,V>
         }
     }
 
-    /** From CLR */
+    /**
+     * 右旋
+     *
+     * @param p
+     */
     private void rotateRight(Entry<K,V> p) {
         if (p != null) {
             Entry<K,V> l = p.left;
@@ -2249,19 +2376,36 @@ public class TreeMap<K,V>
         }
     }
 
-    /** From CLR */
+    /**
+     * 插入元素后调整红黑树颜色
+     *
+     * 如果插入节点的父节点颜色是黑色，那么不需要调整颜色
+     * RED：false，BLACK true
+     *
+     * @param x
+     */
     private void fixAfterInsertion(Entry<K,V> x) {
         x.color = RED;
 
         while (x != null && x != root && x.parent.color == RED) {
+            // 当前节点的父节点（左孩子、有孩子）进行区分
             if (parentOf(x) == leftOf(parentOf(parentOf(x)))) {
+                // 获取当前父节点（左孩子）的兄弟节点（右孩子）
                 Entry<K,V> y = rightOf(parentOf(parentOf(x)));
+                /**
+                 * 当前节点父节点的兄弟节点颜色判断
+                 */
                 if (colorOf(y) == RED) {
+                    // 把当前接待你的父节点设为黑色
                     setColor(parentOf(x), BLACK);
+                    // 父节点的兄弟节点也设置为黑色
                     setColor(y, BLACK);
+                    // 把当前节点父节点的父节点设置为红色
                     setColor(parentOf(parentOf(x)), RED);
+                    // 重置节点 x，继续向上调整
                     x = parentOf(parentOf(x));
                 } else {
+                    // 当前节点左右孩子判断
                     if (x == rightOf(parentOf(x))) {
                         x = parentOf(x);
                         rotateLeft(x);
@@ -2288,11 +2432,14 @@ public class TreeMap<K,V>
                 }
             }
         }
+        // 根节点的颜色为黑色
         root.color = BLACK;
     }
 
     /**
      * Delete node p, and then rebalance the tree.
+     *
+     * 删除指定的节点，调整红黑树
      */
     private void deleteEntry(Entry<K,V> p) {
         modCount++;
@@ -2343,6 +2490,11 @@ public class TreeMap<K,V>
     }
 
     /** From CLR */
+    /**
+     * 删除键值对后调整红黑树颜色
+     *
+     * @param x
+     */
     private void fixAfterDeletion(Entry<K,V> x) {
         while (x != root && colorOf(x) == BLACK) {
             if (x == leftOf(parentOf(x))) {
