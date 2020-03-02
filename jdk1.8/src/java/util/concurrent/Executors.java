@@ -592,6 +592,9 @@ public class Executors {
 
     /**
      * The default thread factory
+     *
+     * ThreadFactory的作用就是提供创建线程的功能的线程工厂。通过newThread()方法提供创建线程的功能，newThread()方法创建的线程
+     * 都是“非守护线程”而且“线程优先级都是Thread.NORM_PRIORITY”。
      */
     static class DefaultThreadFactory implements ThreadFactory {
         private static final AtomicInteger poolNumber = new AtomicInteger(1);

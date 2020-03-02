@@ -228,6 +228,9 @@ public interface BlockingQueue<E> extends Queue<E> {
      * @throws NullPointerException if the specified element is null
      * @throws IllegalArgumentException if some property of the specified
      *         element prevents it from being added to this queue
+     *
+     * 把e添加进BlockingQueue中，如果BlockingQueue中没有空间，则调用线程被阻塞，进入等待状态，
+     * 直到BlockingQueue中有空间再继续
      */
     void put(E e) throws InterruptedException;
 
@@ -258,6 +261,9 @@ public interface BlockingQueue<E> extends Queue<E> {
      *
      * @return the head of this queue
      * @throws InterruptedException if interrupted while waiting
+     *
+     * 取走BlockingQueue里面排在首位的对象，如果BlockingQueue为空，则调用线程被阻塞，进入等待状态，
+     * 直到BlockingQueue有新的数据被加入
      */
     E take() throws InterruptedException;
 
@@ -371,6 +377,10 @@ public interface BlockingQueue<E> extends Queue<E> {
      * @throws IllegalArgumentException if the specified collection is this
      *         queue, or some property of an element of this queue prevents
      *         it from being added to the specified collection
+     *
+     *
+     * 一次性取走BlockingQueue中的数据到c中，可以指定取的个数。
+     * 通过该方法可以提升获取数据效率，不需要多次分批加锁或释放锁
      */
     int drainTo(Collection<? super E> c, int maxElements);
 }
