@@ -159,6 +159,12 @@ public class ReentrantLock implements Lock, java.io.Serializable {
             return false;
         }
 
+        /**
+         * 独占模式下尝试释放锁
+         *
+         * @param releases
+         * @return
+         */
         protected final boolean tryRelease(int releases) {
             // 减掉releases
             int c = getState() - releases;
@@ -175,6 +181,11 @@ public class ReentrantLock implements Lock, java.io.Serializable {
             return free;
         }
 
+        /**
+         * 判断是否为独占锁
+         *
+         * @return
+         */
         protected final boolean isHeldExclusively() {
             // While we must in general read state before owner,
             // we don't need to do so to check if current thread is owner
@@ -187,14 +198,29 @@ public class ReentrantLock implements Lock, java.io.Serializable {
 
         // Methods relayed from outer class
 
+        /**
+         * 返回获取锁的线程，如果该线程已释放资源返回 null
+         *
+         * @return
+         */
         final Thread getOwner() {
             return getState() == 0 ? null : getExclusiveOwnerThread();
         }
 
+        /**
+         * 返回当前线程的同步状态值
+         *
+         * @return
+         */
         final int getHoldCount() {
             return isHeldExclusively() ? getState() : 0;
         }
 
+        /**
+         * 同步状态值处于非 0 值时表示获取到了锁
+         *
+         * @return
+         */
         final boolean isLocked() {
             return getState() != 0;
         }
@@ -211,6 +237,8 @@ public class ReentrantLock implements Lock, java.io.Serializable {
 
     /**
      * Sync object for non-fair locks
+     *
+     * 非公平模式下的同步类
      */
     static final class NonfairSync extends Sync {
         private static final long serialVersionUID = 7316153563782823691L;
@@ -236,6 +264,12 @@ public class ReentrantLock implements Lock, java.io.Serializable {
                 acquire(1);
         }
 
+        /**
+         * 尝试获取锁，直接调用 Sync 中的 nonfairTryAcquire 方法即可
+         *
+         * @param acquires
+         * @return
+         */
         protected final boolean tryAcquire(int acquires) {
             return nonfairTryAcquire(acquires);
         }
@@ -243,6 +277,8 @@ public class ReentrantLock implements Lock, java.io.Serializable {
 
     /**
      * Sync object for fair locks
+     *
+     * 公平锁
      */
     static final class FairSync extends Sync {
         private static final long serialVersionUID = -3000897897090466540L;

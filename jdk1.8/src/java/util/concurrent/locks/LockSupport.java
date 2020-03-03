@@ -135,9 +135,12 @@ public class LockSupport {
      *
      * @param thread the thread to unpark, or {@code null}, in which case
      *        this operation has no effect
+     *
+     * 如果给定线程的许可尚不可用，则使其可用。
      */
     public static void unpark(Thread thread) {
         if (thread != null)
+            //通过底层函数完成解除阻塞
             UNSAFE.unpark(thread);
     }
 
@@ -168,6 +171,8 @@ public class LockSupport {
      * @param blocker the synchronization object responsible for this
      *        thread parking
      * @since 1.6
+     *
+     * 为了线程调度，在许可可用之前禁用当前线程。
      */
     public static void park(Object blocker) {
         Thread t = Thread.currentThread();
@@ -207,6 +212,8 @@ public class LockSupport {
      *        thread parking
      * @param nanos the maximum number of nanoseconds to wait
      * @since 1.6
+     *
+     * 为了线程调度，在许可可用前禁用当前线程，并最多等待指定的等待时间。
      */
     public static void parkNanos(Object blocker, long nanos) {
         if (nanos > 0) {
@@ -249,6 +256,8 @@ public class LockSupport {
      * @param deadline the absolute time, in milliseconds from the Epoch,
      *        to wait until
      * @since 1.6
+     *
+     * 为了线程调度，在指定的时限前禁用当前线程，除非许可可用。
      */
     public static void parkUntil(Object blocker, long deadline) {
         Thread t = Thread.currentThread();
@@ -268,6 +277,8 @@ public class LockSupport {
      * @return the blocker
      * @throws NullPointerException if argument is null
      * @since 1.6
+     *
+     * 返回提供给最近一次尚未解除阻塞的 park 方法调用的 blocker 对象，如果该调用不受阻塞，则返回 null。
      */
     public static Object getBlocker(Thread t) {
         if (t == null)
@@ -299,6 +310,8 @@ public class LockSupport {
      * method to return. Callers should re-check the conditions which caused
      * the thread to park in the first place. Callers may also determine,
      * for example, the interrupt status of the thread upon return.
+     *
+     * 为了线程调度，禁用当前线程，除非许可可用。
      */
     public static void park() {
         UNSAFE.park(false, 0L);
@@ -332,6 +345,8 @@ public class LockSupport {
      * upon return.
      *
      * @param nanos the maximum number of nanoseconds to wait
+     *
+     * 为了线程调度禁用当前线程，最多等待指定的等待时间，除非许可可用。
      */
     public static void parkNanos(long nanos) {
         if (nanos > 0)
@@ -367,6 +382,8 @@ public class LockSupport {
      *
      * @param deadline the absolute time, in milliseconds from the Epoch,
      *        to wait until
+     *
+     * 为了线程调度，在指定的时限前禁用当前线程，除非许可可用。
      */
     public static void parkUntil(long deadline) {
         UNSAFE.park(true, deadline);
