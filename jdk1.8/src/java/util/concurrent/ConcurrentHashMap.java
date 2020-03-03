@@ -507,18 +507,24 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * bounds for power of two table sizes, and is further required
      * because the top two bits of 32bit hash fields are used for
      * control purposes.
+     *
+     * 最大哈希表容量限制
      */
     private static final int MAXIMUM_CAPACITY = 1 << 30;
 
     /**
      * The default initial table capacity.  Must be a power of 2
      * (i.e., at least 1) and at most MAXIMUM_CAPACITY.
+     *
+     * 默认初始化大小
      */
     private static final int DEFAULT_CAPACITY = 16;
 
     /**
      * The largest possible (non-power of two) array size.
      * Needed by toArray and related methods.
+     *
+     * 数组最大容量限制
      */
     static final int MAX_ARRAY_SIZE = Integer.MAX_VALUE - 8;
 
@@ -534,6 +540,8 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * actual floating point value isn't normally used -- it is
      * simpler to use expressions such as {@code n - (n >>> 2)} for
      * the associated resizing threshold.
+     *
+     * 默认加载因子
      */
     private static final float LOAD_FACTOR = 0.75f;
 
@@ -544,6 +552,8 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * than 2, and should be at least 8 to mesh with assumptions in
      * tree removal about conversion back to plain bins upon
      * shrinkage.
+     *
+     * 树化阈值
      */
     static final int TREEIFY_THRESHOLD = 8;
 
@@ -551,6 +561,8 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * The bin count threshold for untreeifying a (split) bin during a
      * resize operation. Should be less than TREEIFY_THRESHOLD, and at
      * most 6 to mesh with shrinkage detection under removal.
+     *
+     * 非树化阈值
      */
     static final int UNTREEIFY_THRESHOLD = 6;
 
@@ -559,6 +571,8 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * (Otherwise the table is resized if too many nodes in a bin.)
      * The value should be at least 4 * TREEIFY_THRESHOLD to avoid
      * conflicts between resizing and treeification thresholds.
+     *
+     * 转树时哈希表数组最小容量限制
      */
     static final int MIN_TREEIFY_CAPACITY = 64;
 
@@ -580,6 +594,8 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     /**
      * The maximum number of threads that can help resize.
      * Must fit in 32 - RESIZE_STAMP_BITS bits.
+     *
+     * 最大线程数限制
      */
     private static final int MAX_RESIZERS = (1 << (32 - RESIZE_STAMP_BITS)) - 1;
 
@@ -615,6 +631,8 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * in bulk tasks.  Subclasses of Node with a negative hash field
      * are special, and contain null keys and values (but are never
      * exported).  Otherwise, keys and vals are never null.
+     *
+     * 内部 Node 数据结构
      */
     static class Node<K,V> implements Map.Entry<K,V> {
         final int hash;
@@ -692,6 +710,8 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     /**
      * Returns a power of two table size for the given desired capacity.
      * See Hackers Delight, sec 3.2
+     *
+     * 返回大于指定数值的最小的 2 的幂
      */
     private static final int tableSizeFor(int c) {
         int n = c - 1;
@@ -773,6 +793,8 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     /**
      * The array of bins. Lazily initialized upon first insertion.
      * Size is always a power of two. Accessed directly by iterators.
+     *
+     * 哈希表数组
      */
     transient volatile Node<K,V>[] table;
 
@@ -785,6 +807,8 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * Base counter value, used mainly when there is no contention,
      * but also as a fallback during table initialization
      * races. Updated via CAS.
+     *
+     * 在没有竞争条件下使用该变量用于计数，被 volatile 修饰，使用 CAS 进行更新
      */
     private transient volatile long baseCount;
 
@@ -843,6 +867,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
         int cap = ((initialCapacity >= (MAXIMUM_CAPACITY >>> 1)) ?
                    MAXIMUM_CAPACITY :
                    tableSizeFor(initialCapacity + (initialCapacity >>> 1) + 1));
+        // 这里 sizeCtl 为哈希表默认初始化大小
         this.sizeCtl = cap;
     }
 
@@ -909,6 +934,8 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
 
     /**
      * {@inheritDoc}
+     *
+     * 返回键值对元素个数
      */
     public int size() {
         long n = sumCount();
@@ -933,11 +960,15 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * then this method returns {@code v}; otherwise it returns
      * {@code null}.  (There can be at most one such mapping.)
      *
+     * 根据 key 返回对应的 value
+     *
      * @throws NullPointerException if the specified key is null
      */
     public V get(Object key) {
         Node<K,V>[] tab; Node<K,V> e, p; int n, eh; K ek;
+        // 计算哈希值
         int h = spread(key.hashCode());
+        // 哈希表存在，长度大于 0，桶位置上有键值对
         if ((tab = table) != null && (n = tab.length) > 0 &&
                 (e = tabAt(tab, (n - 1) & h)) != null) {
             // 判断头结点是否就是我们需要的节点
@@ -978,12 +1009,15 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * specified value. Note: This method may require a full traversal
      * of the map, and is much slower than method {@code containsKey}.
      *
+     * 判断是否包含指定的 value
+     *
      * @param value value whose presence in this map is to be tested
      * @return {@code true} if this map maps one or more keys to the
      *         specified value
      * @throws NullPointerException if the specified value is null
      */
     public boolean containsValue(Object value) {
+        // value 为 null，直接抛出异常
         if (value == null)
             throw new NullPointerException();
         Node<K,V>[] t;
@@ -1005,6 +1039,8 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * <p>The value can be retrieved by calling the {@code get} method
      * with a key that is equal to the original key.
      *
+     * 添加键值对
+     *
      * @param key key with which the specified value is to be associated
      * @param value value to be associated with the specified key
      * @return the previous value associated with {@code key}, or
@@ -1016,7 +1052,21 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     /** Implementation for put and putIfAbsent */
+    /**
+     * 大致流程：
+     * 1.根据 key 的哈希值计算对应的桶位置
+     * 2.判断当前桶位置上是否有键值对，如果没有通过 CAS 直接插入
+     * 3.哈希冲突：加锁（头节点），判断是树结构还是链表结构，然后分别走不同的流程
+     * 4.以链表为例：从头开始遍历，如果 key 已经存在，根据 onlyIfAbsent 判断是否覆盖原来的 value 值，如果不存在则在尾节点继续插入一个新节点
+     * 5.计数，并判断是否需要扩容
+     *
+     * @param key
+     * @param value
+     * @param onlyIfAbsent 是一种插入元素策略，如果为 false，如果 key 已经存在则直接覆盖
+     * @return
+     */
     final V putVal(K key, V value, boolean onlyIfAbsent) {
+        // key 与 value 不允许为 null
         if (key == null || value == null) throw new NullPointerException();
         // 得到 hash 值
         int hash = spread(key.hashCode());
@@ -2615,6 +2665,11 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
         CounterCell(long x) { value = x; }
     }
 
+    /**
+     * 键值对个数统计
+     *
+     * @return
+     */
     final long sumCount() {
         CounterCell[] as = counterCells; CounterCell a;
         long sum = baseCount;
