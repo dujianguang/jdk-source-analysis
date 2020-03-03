@@ -182,6 +182,12 @@ public class CountDownLatchTest {
 1. 在拼装完整数据的线程中调用 CountDownLatch#await(long, TimeUnit) 等待所有的模块信息返回
 2. 每个模块信息的获取，由一个独立的线程执行；执行完毕之后调用 CountDownLatch#countDown() 进行计数-1
 
+**其他使用场景**
+
+- 确保某个计算在其需要的所有资源都被初始化之后才执行
+- 确保某个服务在其依赖的所有其他服务都已经启动之后才启动
+- 等待直到每个操作的所有参与者都就绪再执行（比如打麻将时需要等待四个玩家就绪）
+
 ## 2、CountDownLatch原理
 
 ### 2.1、实现原理
