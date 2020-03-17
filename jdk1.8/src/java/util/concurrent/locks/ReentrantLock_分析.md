@@ -1465,7 +1465,7 @@ ReentrantLock 支持更加灵活的同步代码块，但是使用 synchronized �
 
 ReentrantLock 支持中断处理，且性能较 synchronized 会好些。
 
-
+ 
 
 ## 7、总结
 
